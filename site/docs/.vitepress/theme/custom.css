@@ -1,0 +1,16 @@
+.doc-edit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  padding: 4px 10px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+  transition: border-color 0.2s;
+}
+.doc-edit-link:hover {
+  border-color: var(--vp-c-brand-1);
+}

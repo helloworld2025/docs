@@ -1,0 +1,67 @@
+name: Sync docs & deploy
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # 每 10 分钟
+  workflow_dispatch: {}       # 支持手动触发
+  repository_dispatch:
+    types: [docs-updated]     # 支持 account/relay/analytics 仓库 push 后主动通知（可选，见 README）
+  push:
+    branches: [main]
+    paths:
+      - "site/docs/general/**"
+      - "site/**"
+      - "scripts/**"
+
+# 避免并发同步/部署互相竞争（README 中"冲突处理"原则 a）
+concurrency:
+  group: docs-sync-deploy
+  cancel-in-progress: false
+
+jobs:
+  sync-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sync docs from account/relay/analytics
+        run: node scripts/sync-sources.mjs
+        env:
+          SYNC_GITHUB_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN }}
+
+      - name: Commit synced docs (if changed)
+        run: |
+          git config user.name "docs-sync-bot"
+          git config user.email "docs-sync-bot@users.noreply.github.com"
+          git add site/docs/account site/docs/relay site/docs/analytics
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: sync docs from source repos [skip ci]"
+            git push
+          else
+            echo "No doc changes to commit."
+          fi
+
+      - name: Install & build editor
+        run: |
+          npm --prefix site/editor install
+          npm --prefix site/editor run build
+
+      - name: Install & build site
+        run: |
+          npm --prefix site install
+          npm --prefix site run build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          command: pages deploy site/docs/.vitepress/dist --project-name docs

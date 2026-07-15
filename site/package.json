@@ -1,0 +1,23 @@
+{
+  "name": "docs-site",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev docs",
+    "build": "node scripts/gen-nav.mjs && vitepress build docs",
+    "preview": "vitepress preview docs",
+    "migrate:local": "wrangler d1 migrations apply docs --local",
+    "migrate:remote": "wrangler d1 migrations apply docs --remote",
+    "pages:dev": "wrangler pages dev docs/.vitepress/dist"
+  },
+  "dependencies": {
+    "vitepress": "^1.5.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260710.1",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.0.0"
+  }
+}

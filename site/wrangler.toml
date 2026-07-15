@@ -1,0 +1,25 @@
+# Cloudflare Pages 项目：docs.relay.tech
+# 静态站点（VitePress 构建产物：docs/.vitepress/dist）+ Pages Functions（登录 / 编辑 API）
+name                   = "docs"
+pages_build_output_dir = "docs/.vitepress/dist"
+compatibility_date     = "2024-12-01"
+compatibility_flags    = ["nodejs_compat"]
+
+# ── Public configuration (non-secret) ──────────────────────────────────
+[vars]
+TURNSTILE_SITE_KEY = "0x4AAAAAADfEJZL_vKjzgpOc"
+# 源仓库映射（key 需与 site/docs/<key>/ 镜像目录一致），JSON 字符串
+SOURCE_REPOS = "{\"account\":\"helloworld2025/account\",\"relay\":\"helloworld2025/relay\",\"analytics\":\"helloworld2025/analytics\",\"general\":\"helloworld2025/docs\"}"
+
+# ── D1 database (admin_users) ──────────────────────────────────────────
+[[d1_databases]]
+binding        = "DB"
+database_name  = "docs"
+database_id    = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+# Secrets (set via `wrangler pages secret put <NAME> --project-name docs`), NOT stored here:
+#   ADMIN_JWT_SECRET   - HS256 签名密钥，生成方式：openssl rand -base64 48
+#   TURNSTILE_SECRET   - Cloudflare Turnstile 后端 secret key
+#   GITHUB_TOKEN       - 具备 account/relay/analytics/docs 四仓库 contents 读写权限的
+#                        GitHub Fine-grained Personal Access Token（编辑器保存文件用）

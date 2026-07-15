@@ -1,0 +1,15 @@
+{
+  "name": "docs-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-sources.mjs",
+    "editor:install": "npm --prefix site/editor install",
+    "editor:build": "npm --prefix site/editor run build",
+    "site:install": "npm --prefix site install",
+    "site:build": "npm --prefix site run build",
+    "build": "npm run editor:install && npm run editor:build && npm run site:install && npm run site:build",
+    "deploy": "npx wrangler pages deploy site/docs/.vitepress/dist --project-name docs"
+  }
+}

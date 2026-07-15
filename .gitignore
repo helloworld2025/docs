@@ -1,0 +1,15 @@
+node_modules/
+site/docs/.vitepress/cache/
+site/docs/.vitepress/dist/
+site/docs/.vitepress/nav-data.json
+site/docs/public/edit/
+site/docs/public/doc-tree.json
+site/editor/dist/
+site/editor/tsconfig.tsbuildinfo
+.wrangler/
+*.local
+.DS_Store
+.env
+.env.*
+!.env.*.example
+
