@@ -30,9 +30,19 @@ if [ "${1:-}" == "--full" ]; then
   FULL_MODE=1
 fi
 
-# ── Step 1：同步文档（本地模式，读取同级 account/relay/analytics 目录）──
+# ── 加载 .env.secrets 里的 GITHUB_TOKEN，供同步脚本走 GitHub API 使用 ──────
+if [ -f "$ROOT_DIR/.env.secrets" ]; then
+  EXISTING_TOKEN=$(grep -E '^GITHUB_TOKEN=' "$ROOT_DIR/.env.secrets" | cut -d= -f2- || true)
+  [ -n "$EXISTING_TOKEN" ] && export GITHUB_TOKEN="$EXISTING_TOKEN"
+fi
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${SYNC_GITHUB_TOKEN:-}" ]; then
+  warn "未在 .env.secrets 中找到 GITHUB_TOKEN，同步文档需要具备 account/relay/analytics 仓库读权限的 token"
+fi
+
+# ── Step 1：同步文档（统一走 GitHub API）──────────────────────
 note "同步文档..."
 node "$ROOT_DIR/scripts/sync-sources.mjs"
+
 
 # ── Step 2：安装依赖 ────────────────────────────────────────
 if [ ! -d "$SITE_DIR/node_modules" ]; then

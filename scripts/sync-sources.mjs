@@ -1,17 +1,13 @@
-// 跨仓库文档同步脚本 —— 拉取 account / relay / analytics 仓库中配置好的文档路径，
-// 整体覆盖写入 site/docs/<key>/ 对应镜像目录。
+// 跨仓库文档同步脚本 —— 通过 GitHub REST API 拉取 account / relay / analytics
+// 仓库中配置好的文档路径，整体覆盖写入 site/docs/<key>/ 对应镜像目录。
 //
-// 优先使用【本地模式】：如果这些仓库已经作为同级目录 clone 在本 workspace 下
-// （如 /Users/xxx/code/1/{account,relay,analytics,docs}，见根目录 repos.json），
-// 直接从本地文件系统复制，无需任何网络请求 / Token，适合本地开发预览。
-//
-// 找不到本地目录时，回退到【远程模式】：通过 GitHub REST API 拉取
-// （CI / 生产环境定时同步使用，不使用 git clone / sparse-checkout 是因为这些仓库
-// 体积较大，纯 HTTP API 方式更轻量，且天然只拉取配置好的路径）。
+// 统一走远程模式：始终通过 GitHub Contents/Trees API 拉取最新内容，
+// 不再读取本地同级 clone 的仓库目录，保证同步结果始终与 GitHub 上的最新
+// commit 一致，不受本地仓库是否存在 / 是否为最新版本影响。
 //
 // 用法：
-//   node scripts/sync-sources.mjs                          # 本地模式（默认，找得到本地仓库目录时）
-//   SYNC_GITHUB_TOKEN=<token> node scripts/sync-sources.mjs # 远程模式（本地目录不存在时自动回退，或显式设置 FORCE_REMOTE_SYNC=1 强制走远程）
+//   SYNC_GITHUB_TOKEN=<token> node scripts/sync-sources.mjs
+//   （或设置 GITHUB_TOKEN 环境变量；dev.sh / deploy.sh 会自动从 .env.secrets 加载）
 //
 // 冲突处理原则：源仓库永远是唯一真相。本脚本每次同步都是"整体覆盖"
 // （先清空镜像目录再写入最新内容），不做 diff/merge —— 因为镜像目录从不会被
@@ -21,30 +17,21 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOCS_DIR = path.resolve(__dirname, "../site/docs");
-// docs 仓库自身的父目录，本地开发时 account/relay/analytics 通常与 docs 平级
-// __dirname = <workspace>/docs/scripts，所以只需向上两级即可到 <workspace>
-const WORKSPACE_ROOT = path.resolve(__dirname, "../..");
 
-
-const FORCE_REMOTE = process.env.FORCE_REMOTE_SYNC === "1";
 const TOKEN = process.env.SYNC_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+if (!TOKEN) {
+  console.error("❌ 缺少 SYNC_GITHUB_TOKEN（或 GITHUB_TOKEN），需要 account/relay/analytics 仓库读权限");
+  process.exit(1);
+}
 
 // ── 同步源配置：按需增删 paths（目录或单个文件均可）─────────────────────
 const SOURCES = [
-  { key: "account", repo: "helloworld2025/account", localDir: "account", paths: ["docs", "README.md"] },
-  { key: "relay", repo: "helloworld2025/relay", localDir: "relay", paths: ["docs", "README.md"] },
-  { key: "analytics", repo: "helloworld2025/analytics", localDir: "analytics", paths: ["README.md"] },
+  { key: "account", repo: "helloworld2025/account", paths: ["docs", "README.md"] },
+  { key: "relay", repo: "helloworld2025/relay", paths: ["docs", "README.md"] },
+  { key: "analytics", repo: "helloworld2025/analytics", paths: ["README.md"] },
 ];
-
-function findLocalRepoDir(source) {
-  if (FORCE_REMOTE) return null;
-  const dir = path.join(WORKSPACE_ROOT, source.localDir);
-  return fs.existsSync(path.join(dir, ".git")) ? dir : null;
-}
-
 
 function ghHeaders() {
   return {
@@ -87,33 +74,6 @@ function matchesConfiguredPaths(filePath, configuredPaths) {
   return configuredPaths.some((p) => filePath === p || filePath.startsWith(`${p}/`));
 }
 
-function listLocalMdFiles(rootDir, configuredPaths) {
-  const results = [];
-  for (const p of configuredPaths) {
-    const abs = path.join(rootDir, p);
-    if (!fs.existsSync(abs)) continue;
-    const stat = fs.statSync(abs);
-    if (stat.isFile()) {
-      if (abs.endsWith(".md")) results.push(p);
-      continue;
-    }
-    // 目录：递归收集所有 .md 文件
-    const walk = (dir, relBase) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const relPath = path.join(relBase, entry.name);
-        const absPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          walk(absPath, relPath);
-        } else if (entry.isFile() && entry.name.endsWith(".md")) {
-          results.push(relPath);
-        }
-      }
-    };
-    walk(abs, p);
-  }
-  return results;
-}
-
 function prepareTargetDir(source) {
   const targetDir = path.join(DOCS_DIR, source.key);
   // 整体覆盖：先清空旧镜像目录，避免残留已在源仓库删除的文件。
@@ -124,26 +84,7 @@ function prepareTargetDir(source) {
   return targetDir;
 }
 
-function syncSourceLocal(source, localDir) {
-  const targetDir = prepareTargetDir(source);
-  const relFiles = listLocalMdFiles(localDir, source.paths);
-
-  const manifestEntries = {};
-  for (const relPath of relFiles) {
-    const srcPath = path.join(localDir, relPath);
-    const destPath = path.join(targetDir, relPath);
-    fs.mkdirSync(path.dirname(destPath), { recursive: true });
-    fs.copyFileSync(srcPath, destPath);
-    manifestEntries[`${source.key}/${relPath}`] = { source: "local", localDir, path: relPath };
-    console.log(`  ✔ ${source.key}/${relPath}`);
-  }
-  return manifestEntries;
-}
-
 async function syncSourceRemote(source) {
-  if (!TOKEN) {
-    throw new Error("本地未找到仓库目录，且缺少 SYNC_GITHUB_TOKEN（远程模式需要 account/relay/analytics 仓库读权限）");
-  }
   const branch = await getDefaultBranch(source.repo);
   const tree = await getTree(source.repo, branch);
   const mdFiles = tree.filter(
@@ -184,10 +125,9 @@ async function main() {
   let hadError = false;
 
   for (const source of SOURCES) {
-    const localDir = findLocalRepoDir(source);
-    console.log(`📦 ${source.key} (${localDir ? `本地: ${localDir}` : `远程: ${source.repo}`})`);
+    console.log(`📦 ${source.key} (${source.repo})`);
     try {
-      const entries = localDir ? syncSourceLocal(source, localDir) : await syncSourceRemote(source);
+      const entries = await syncSourceRemote(source);
       manifest = { ...manifest, ...entries };
       ensureSectionIndex(source);
     } catch (e) {
@@ -196,8 +136,6 @@ async function main() {
     }
     console.log("");
   }
-
-
 
   fs.mkdirSync(DOCS_DIR, { recursive: true });
   fs.writeFileSync(

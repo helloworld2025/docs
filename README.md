@@ -59,9 +59,9 @@ docs/
 │   ├── wrangler.toml
 │   └── package.json
 ├── scripts/
-│   ├── sync-sources.mjs        跨仓库拉取脚本（本地模式优先，读取同级 account/relay/analytics 目录；
-│   │                            找不到本地目录才回退 GitHub API）
+│   ├── sync-sources.mjs        跨仓库拉取脚本（统一通过 GitHub REST API + Token 同步）
 │   └── gen-admin-hash.mjs      生成初始管理员密码 hash（与 account 项目算法保持一致）
+
 ├── dev.sh                      一键本地开发（默认纯预览，--full 联调登录/编辑器）
 ├── deploy.sh                   一键本地部署到 Cloudflare Pages（生产环境，无 GitHub Actions）
 ├── deploy.config.sh            部署明文配置（项目名/域名/Turnstile site key 等，可提交）
@@ -104,12 +104,13 @@ docs/
 
 本项目**完全在本机操作**，不依赖任何 CI/CD：
 
-- 文档同步（`scripts/sync-sources.mjs`）优先读取 workspace 下同级的
-  `account/` / `relay/` / `analytics/` 仓库目录（见根目录 `repos.json`），
-  无需 GitHub Token；只有本地找不到对应仓库时才回退到 GitHub REST API
-  （需要设置 `SYNC_GITHUB_TOKEN`，或运行时传 `FORCE_REMOTE_SYNC=1` 强制远程模式）
+- 文档同步（`scripts/sync-sources.mjs`）统一通过 GitHub REST API 拉取
+  `account` / `relay` / `analytics` 仓库最新内容，需要 `.env.secrets` 里配置
+  `GITHUB_TOKEN`（或环境变量 `SYNC_GITHUB_TOKEN`），确保拿到的始终是 GitHub
+  上的最新版本，不依赖本地是否 clone 了这几个仓库
 - 部署（`deploy.sh`）直接在本机跑 `wrangler` 命令，首次会自动创建
   Cloudflare 资源（D1、Pages 项目），之后重复执行只做"同步 + 构建 + 部署"
+
 
 ### 1. 一键本地开发
 

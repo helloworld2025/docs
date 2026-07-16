@@ -6,6 +6,13 @@ site/docs/public/edit/
 site/docs/public/doc-tree.json
 site/editor/dist/
 site/editor/tsconfig.tsbuildinfo
+# 跨仓库镜像目录（sync-sources.mjs 每次 dev.sh/deploy.sh 都会重新生成，
+# 源仓库才是唯一真相，不进 docs 仓库自身历史，避免多人协作时产生无意义冲突）
+site/docs/account/
+site/docs/relay/
+site/docs/analytics/
+site/docs/.sync-manifest.json
+
 .wrangler/
 *.local
 .DS_Store
