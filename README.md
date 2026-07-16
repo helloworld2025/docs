@@ -59,11 +59,15 @@ docs/
 │   ├── wrangler.toml
 │   └── package.json
 ├── scripts/
-│   ├── sync-sources.mjs        跨仓库拉取脚本（GitHub API，无需 git clone）
+│   ├── sync-sources.mjs        跨仓库拉取脚本（本地模式优先，读取同级 account/relay/analytics 目录；
+│   │                            找不到本地目录才回退 GitHub API）
 │   └── gen-admin-hash.mjs      生成初始管理员密码 hash（与 account 项目算法保持一致）
-└── .github/workflows/
-    └── sync-and-deploy.yml     定时同步 + 构建 + 部署到 Cloudflare Pages
+├── dev.sh                      一键本地开发（默认纯预览，--full 联调登录/编辑器）
+├── deploy.sh                   一键本地部署到 Cloudflare Pages（生产环境，无 GitHub Actions）
+├── deploy.config.sh            部署明文配置（项目名/域名/Turnstile site key 等，可提交）
+└── .env.secrets                部署密钥（JWT secret / Turnstile secret / GitHub token / 管理员密码，已 gitignore）
 ```
+
 
 ## 鉴权设计
 
@@ -76,9 +80,10 @@ docs/
 - 登录成功后签发 HS256 JWT，写入 **httpOnly Cookie**（`doc_session`），
   因为需要保护的是**整站页面导航**（不仅是 API），Cookie 方式比
   `sessionStorage + Authorization Header` 更适合做全站网关拦截
-- `functions/_middleware.ts` 拦截除 `/login.html`、`/api/auth/login`、
-  `/api/auth/refresh`、`/api/config`、静态资源、`/edit/*` 外的所有请求，
-  校验 Cookie 中的 JWT，未登录一律重定向到 `/login.html`
+- `functions/_middleware.ts` 拦截除 `/login.html`（及 VitePress `cleanUrls` 重写后的
+  `/login`）、`/api/auth/login`、`/api/auth/refresh`、`/api/config`、静态资源、
+  `/edit/*` 外的所有请求，校验 Cookie 中的 JWT，未登录一律重定向到 `/login.html`
+
 - 无状态设计，不维护 token 黑名单（与 `relay-server` 的 `admin_auth.rs` 保持一致的取舍），
   登出即清除 Cookie，JWT 有效期 24 小时
 
@@ -95,92 +100,58 @@ docs/
 - 如果文件已被他人修改（GitHub 返回 409），后端原样透传 409，
   前端提示「文件已被他人修改，请刷新后重新编辑」，不会静默覆盖丢失修改
 
-## 快速开始（本地开发）
+## 本地开发 / 本地部署（无需 GitHub Actions）
 
-### 1. 创建 Cloudflare 资源（首次，仅需一次）
+本项目**完全在本机操作**，不依赖任何 CI/CD：
 
-```bash
-cd site
-npx wrangler d1 create docs
-# 把返回的 database_id 填入 wrangler.toml 的 [[d1_databases]] 部分
+- 文档同步（`scripts/sync-sources.mjs`）优先读取 workspace 下同级的
+  `account/` / `relay/` / `analytics/` 仓库目录（见根目录 `repos.json`），
+  无需 GitHub Token；只有本地找不到对应仓库时才回退到 GitHub REST API
+  （需要设置 `SYNC_GITHUB_TOKEN`，或运行时传 `FORCE_REMOTE_SYNC=1` 强制远程模式）
+- 部署（`deploy.sh`）直接在本机跑 `wrangler` 命令，首次会自动创建
+  Cloudflare 资源（D1、Pages 项目），之后重复执行只做"同步 + 构建 + 部署"
 
-npx wrangler pages project create docs
-```
-
-### 2. 配置 Secrets
-
-```bash
-# JWT 签名密钥
-openssl rand -base64 48 | npx wrangler pages secret put ADMIN_JWT_SECRET --project-name docs
-
-# Cloudflare Turnstile（Dashboard 创建一个 Widget 后获得）
-npx wrangler pages secret put TURNSTILE_SECRET --project-name docs
-
-# 具备 account / relay / analytics / docs 四个仓库 contents 读写权限的
-# GitHub Fine-grained Personal Access Token
-npx wrangler pages secret put GITHUB_TOKEN --project-name docs
-```
-
-把 Turnstile 的 **site key**（非 secret）填入 `site/wrangler.toml` 的 `[vars] TURNSTILE_SITE_KEY`。
-
-### 3. 数据库迁移 + 创建首个管理员账号
+### 1. 一键本地开发
 
 ```bash
-cd site
-npm run migrate:remote
-
-node ../scripts/gen-admin-hash.mjs "YourPassword123"
-# 复制输出的 hash，执行：
-npx wrangler d1 execute docs --remote --command \
-  "INSERT INTO admin_users (id, email, password_hash, role) VALUES ('adm_1', 'you@relay.tech', '<上面的hash>', 'superadmin')"
+cd docs
+bash dev.sh          # 纯内容预览（同步文档 + vitepress dev，热更新），http://localhost:5173
+bash dev.sh --full   # 完整模式：联调登录 / 在线编辑器 / API（wrangler pages dev --local）
 ```
 
-### 4. 本地跑一次文档同步（可选，验证 sync 脚本）
+### 2. 配置部署密钥（首次）
 
 ```bash
-export SYNC_GITHUB_TOKEN=<有 account/relay/analytics 只读权限的 token>
-node scripts/sync-sources.mjs
+cd docs
+cp .env.secrets.example .env.secrets
+# 编辑 .env.secrets，填写：
+#   ADMIN_JWT_SECRET  openssl rand -base64 48 生成
+#   TURNSTILE_SECRET  Cloudflare Turnstile Dashboard 获取
+#   GITHUB_TOKEN      可选，account/relay/analytics/docs 四仓库 Contents 读写权限的
+#                     GitHub Fine-grained PAT（用于在线编辑器保存文档，不填则该功能不可用）
+#   ADMIN_PASSWORD    初始管理员登录密码
 ```
 
-### 5. 构建编辑器 + 站点并部署
+非敏感的项目命名 / 域名 / Turnstile site key / 管理员邮箱在 `deploy.config.sh`
+里维护（可提交到代码库），Cloudflare 侧资源统一加 `-pro` 后缀，为未来拆分
+test/pro 等多环境预留命名空间。
+
+### 3. 一键部署到生产
 
 ```bash
-cd site/editor && npm install && npm run build
-cd .. && npm install && npm run build
-npx wrangler pages deploy docs/.vitepress/dist --project-name docs
+cd docs
+bash deploy.sh
 ```
 
-### 6. 绑定自定义域名
+`deploy.sh` 会依次执行：同步文档 → 安装依赖 → 检查/创建 D1 数据库（`docs-pro`）→
+检查/创建 Pages 项目（`docs-pro`）→ 应用 D1 迁移 → 生成管理员账号并写入 D1 →
+写入 Cloudflare Pages Secrets（`ADMIN_JWT_SECRET` / `TURNSTILE_SECRET` /
+`GITHUB_TOKEN`）→ 构建 editor SPA + VitePress 静态站点 → `wrangler pages deploy`。
 
-在 Cloudflare Dashboard 为 Pages 项目 `docs` 挂载自定义域名（如 `docs.relay.tech`）。
+首次部署完成后，需要在 Cloudflare Dashboard 为 Pages 项目 `docs-pro`
+手动绑定自定义域名（如 `docs.relay.tech`），后续再跑 `bash deploy.sh`
+只做增量部署，安全可重复执行。
 
-## 生产部署（自动化）
-
-`.github/workflows/sync-and-deploy.yml` 会定时（默认每 10 分钟）+ 手动触发：
-拉取 account/relay/analytics 最新文档 → 提交回本仓库 → 构建编辑器与站点 → 部署到 Cloudflare Pages。
-
-需要在 `docs` GitHub 仓库的 Settings → Secrets 配置：
-
-| Secret | 说明 |
-|---|---|
-| `SYNC_GITHUB_TOKEN` | 具备 account/relay/analytics 只读权限（同步用） |
-| `CF_API_TOKEN` | Cloudflare API Token（Pages 部署权限） |
-| `CF_ACCOUNT_ID` | Cloudflare 账户 ID |
-
-### 可选：近实时同步
-
-如果希望 account/relay/analytics 仓库 push 后立即触发同步（而不是等定时轮询），
-可以在这三个仓库各自的 CI 里加一步（push 到 `docs/**` 或 `README.md` 时触发）：
-
-```yaml
-- name: Notify docs repo to sync
-  run: |
-    curl -X POST \
-      -H "Authorization: Bearer ${{ secrets.DOCS_REPO_DISPATCH_TOKEN }}" \
-      -H "Accept: application/vnd.github+json" \
-      https://api.github.com/repos/helloworld2025/docs/dispatches \
-      -d '{"event_type":"docs-updated"}'
-```
 
 ## 已知限制 / 后续可优化方向
 

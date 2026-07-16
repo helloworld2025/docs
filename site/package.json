@@ -7,9 +7,10 @@
     "dev": "vitepress dev docs",
     "build": "node scripts/gen-nav.mjs && vitepress build docs",
     "preview": "vitepress preview docs",
-    "migrate:local": "wrangler d1 migrations apply docs --local",
-    "migrate:remote": "wrangler d1 migrations apply docs --remote",
+    "migrate:local": "wrangler d1 migrations apply docs-pro --local",
+    "migrate:remote": "wrangler d1 migrations apply docs-pro --remote",
     "pages:dev": "wrangler pages dev docs/.vitepress/dist"
+
   },
   "dependencies": {
     "vitepress": "^1.5.0",

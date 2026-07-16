@@ -1,0 +1,85 @@
+{
+  "syncedAt": "2026-07-16T08:32:44.708Z",
+  "files": {
+    "account/docs/OIDC-SSO-流程总结.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/account",
+      "path": "docs/OIDC-SSO-流程总结.md"
+    },
+    "account/docs/OIDC-标准技术方案.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/account",
+      "path": "docs/OIDC-标准技术方案.md"
+    },
+    "account/README.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/account",
+      "path": "README.md"
+    },
+    "relay/docs/AGENT_SKILL_REFACTOR.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/AGENT_SKILL_REFACTOR.md"
+    },
+    "relay/docs/AI_MODEL_ROUTING.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/AI_MODEL_ROUTING.md"
+    },
+    "relay/docs/IOS_SHORTCUT_MVP.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/IOS_SHORTCUT_MVP.md"
+    },
+    "relay/docs/PEOPLE_BETA_ROLLOUT.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/PEOPLE_BETA_ROLLOUT.md"
+    },
+    "relay/docs/RELAY_DESIGN_GUIDELINE.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/RELAY_DESIGN_GUIDELINE.md"
+    },
+    "relay/docs/RELAY_DESIGN_GUIDELINE_v2_DRAFT.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/RELAY_DESIGN_GUIDELINE_v2_DRAFT.md"
+    },
+    "relay/docs/RELAY_DESIGN_GUIDELINE_v3_DRAFT.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/RELAY_DESIGN_GUIDELINE_v3_DRAFT.md"
+    },
+    "relay/docs/SELF_OPTIMIZATION_REFACTOR.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/SELF_OPTIMIZATION_REFACTOR.md"
+    },
+    "relay/docs/SKILL_ROUTING_UNIFICATION.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/SKILL_ROUTING_UNIFICATION.md"
+    },
+    "relay/docs/SUBSCRIPTION_STRIPE.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/SUBSCRIPTION_STRIPE.md"
+    },
+    "relay/docs/TESTLAB_DESIGN.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "docs/TESTLAB_DESIGN.md"
+    },
+    "relay/README.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/relay",
+      "path": "README.md"
+    },
+    "analytics/README.md": {
+      "source": "local",
+      "localDir": "/Users/robin/Desktop/code/1/analytics",
+      "path": "README.md"
+    }
+  }
+}
