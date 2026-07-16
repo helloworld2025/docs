@@ -89,16 +89,21 @@ docs/
 
 ## 冲突处理
 
-**(a) 定时镜像同步（`sync-sources.mjs`）**
-- 每次同步 = 用源仓库最新内容**整体覆盖**对应镜像目录（先清空再写入），
-  因为镜像目录不会被手动编辑，不存在真正的"双向修改"，只是单向覆盖
-- GitHub Actions 用 `concurrency` 分组保证同一时间只有一个同步任务在跑
-- 同步结果记录在 `site/docs/.sync-manifest.json`（同步时间、来源 commit sha），仅作审计用途
+**(a) 镜像同步（`sync-sources.mjs`）不进 `docs` 仓库自身历史**
+- `site/docs/{account,relay,analytics}/` 及 `.sync-manifest.json` 已加入
+  `.gitignore`：它们是 `dev.sh`/`deploy.sh` 每次运行时从 GitHub API 重新拉取
+  生成的构建产物，本身不是"真相"，源仓库才是。不提交进 git 历史，避免多人
+  各自在本地跑同步 + push 时，因为这些文件产生无意义的 merge 冲突
+- 每次同步 = 用源仓库最新内容**整体覆盖**对应镜像目录（先清空再写入）
 
 **(b) 网页编辑器直接写源仓库（真正可能冲突的场景）**
 - 编辑器加载文件时记录当时的 GitHub blob `sha`，保存时把这个 `sha` 一并提交
 - 如果文件已被他人修改（GitHub 返回 409），后端原样透传 409，
   前端提示「文件已被他人修改，请刷新后重新编辑」，不会静默覆盖丢失修改
+- 网页编辑器直接对源仓库发起 GitHub Contents API 提交，不经过本地 git clone，
+  跟工程师日常在本地 IDE 里改代码提交完全独立，正常情况下不会冲突；只有当
+  两边**同时改同一份 `.md` 文件**时才可能出现上述 409，按提示刷新重新编辑即可
+
 
 ## 本地开发 / 本地部署（无需 GitHub Actions）
 
