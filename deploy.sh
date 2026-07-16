@@ -10,8 +10,12 @@
 #   - 已 `wrangler login`
 #   - 存在 docs/.env.secrets（cp .env.secrets.example .env.secrets 并填写）
 #
-# 首次运行会自动创建 D1 数据库 / Pages 项目 / 迁移表 / 管理员账号 / secrets，
+# 首次运行会自动创建 D1 数据库 / Pages 项目 / 迁移表 / secrets，
 # 之后重复运行只会跳过已存在的资源，安全可重复执行（幂等）。
+# 管理员账号不由本脚本创建/更新，仅需手动执行一次
+# `node scripts/gen-admin-hash.mjs <password>` 生成 hash 后
+# `wrangler d1 execute <D1_NAME> --remote --command "INSERT INTO admin_users ..."` 写入。
+
 # ============================================================
 set -euo pipefail
 
@@ -52,16 +56,17 @@ command -v npx >/dev/null || die "未找到 npx，请先安装 Node.js"
 echo -e "${BOLD}${CYAN}🚀 docs 本地部署 — 项目: ${PAGES_PROJECT} / D1: ${D1_NAME}${NC}\n"
 
 # ── Step 1：同步文档 ────────────────────────────────────────
-note "[1/8] 同步文档（account/relay/analytics → site/docs 镜像）"
+note "[1/7] 同步文档（account/relay/analytics → site/docs 镜像）"
 node "$ROOT_DIR/scripts/sync-sources.mjs"
 
 # ── Step 2：安装依赖 ────────────────────────────────────────
-note "[2/8] 安装依赖"
+note "[2/7] 安装依赖"
 (cd "$SITE_DIR" && npm install)
 (cd "$EDITOR_DIR" && npm install)
 
 # ── Step 3：确保 D1 数据库存在 ──────────────────────────────
-note "[3/8] 检查 D1 数据库: $D1_NAME"
+note "[3/7] 检查 D1 数据库: $D1_NAME"
+
 D1_LIST_JSON=$(cd "$SITE_DIR" && npx wrangler d1 list --json 2>/dev/null || echo "[]")
 D1_ID=$(echo "$D1_LIST_JSON" | node -e "
   const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
@@ -90,7 +95,8 @@ node -e "
 "
 
 # ── Step 4：确保 Pages 项目存在 ─────────────────────────────
-note "[4/8] 检查 Pages 项目: $PAGES_PROJECT"
+note "[4/7] 检查 Pages 项目: $PAGES_PROJECT"
+
 if (cd "$SITE_DIR" && npx wrangler pages project list 2>/dev/null | grep -q "$PAGES_PROJECT"); then
   ok "Pages 项目已存在"
 else
@@ -100,18 +106,13 @@ else
 fi
 
 # ── Step 5：D1 迁移（远程）──────────────────────────────────
-note "[5/8] 应用 D1 迁移（remote）"
+note "[5/7] 应用 D1 迁移（remote）"
+
 (cd "$SITE_DIR" && npx wrangler d1 migrations apply "$D1_NAME" --remote)
 
-# ── Step 6：创建/更新管理员账号 ─────────────────────────────
-note "[6/8] 生成管理员账号 hash 并写入 D1"
-ADMIN_HASH=$(node "$ROOT_DIR/scripts/gen-admin-hash.mjs" "$ADMIN_PASSWORD")
-(cd "$SITE_DIR" && npx wrangler d1 execute "$D1_NAME" --remote --command \
-  "INSERT INTO admin_users (id, email, password_hash, role) VALUES ('adm_1', '${ADMIN_EMAIL}', '${ADMIN_HASH}', 'superadmin') ON CONFLICT(email) DO UPDATE SET password_hash=excluded.password_hash")
-ok "管理员账号就绪: $ADMIN_EMAIL"
+# ── Step 6：写入 Secrets ────────────────────────────────────
+note "[6/7] 写入 Cloudflare Pages Secrets"
 
-# ── Step 7：写入 Secrets ────────────────────────────────────
-note "[7/8] 写入 Cloudflare Pages Secrets"
 printf '%s' "$ADMIN_JWT_SECRET" | (cd "$SITE_DIR" && npx wrangler pages secret put ADMIN_JWT_SECRET --project-name "$PAGES_PROJECT")
 printf '%s' "$TURNSTILE_SECRET" | (cd "$SITE_DIR" && npx wrangler pages secret put TURNSTILE_SECRET --project-name "$PAGES_PROJECT")
 if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -129,8 +130,9 @@ node -e "
   fs.writeFileSync(p,s);
 "
 
-# ── Step 8：构建 + 部署 ─────────────────────────────────────
-note "[8/8] 构建站点并部署"
+# ── Step 7：构建 + 部署 ─────────────────────────────────────
+note "[7/7] 构建站点并部署"
+
 (cd "$EDITOR_DIR" && npm run build)
 (cd "$SITE_DIR" && node scripts/gen-nav.mjs && npx vitepress build docs)
 (cd "$SITE_DIR" && npx wrangler pages deploy docs/.vitepress/dist --project-name "$PAGES_PROJECT" --commit-dirty=true)

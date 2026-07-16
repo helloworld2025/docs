@@ -8,7 +8,7 @@ compatibility_flags    = ["nodejs_compat"]
 
 # ── Public configuration (non-secret) ──────────────────────────────────
 [vars]
-TURNSTILE_SITE_KEY = "0x4AAAAAAD2cImzps5sZDur6"
+TURNSTILE_SITE_KEY = "0x4AAAAAADhF0CGG3B1_Wlkv"
 # 源仓库映射（key 需与 site/docs/<key>/ 镜像目录一致），JSON 字符串
 SOURCE_REPOS = "{\"account\":\"helloworld2025/account\",\"relay\":\"helloworld2025/relay\",\"analytics\":\"helloworld2025/analytics\",\"general\":\"helloworld2025/docs\"}"
 
