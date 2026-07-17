@@ -17,7 +17,7 @@ D1_NAME="docs-pro"
 DOCS_DOMAIN="docs.relay.tech"
 
 # Cloudflare Turnstile site key（非密钥，前端可见）
-TURNSTILE_SITE_KEY="0x4AAAAAADhF0CGG3B1_Wlkv"
+TURNSTILE_SITE_KEY="0x4AAAAAAD2cImzps5sZDur6"
 
 # 初始管理员邮箱（密码见 .env.secrets 的 ADMIN_PASSWORD）
 ADMIN_EMAIL="robin@relay.tech"
