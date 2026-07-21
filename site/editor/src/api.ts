@@ -50,5 +50,11 @@ export const docApi = {
       body: JSON.stringify({ section, path, content, sha, message }),
     }),
 
+  deleteFile: (section: string, path: string, sha: string, message?: string) =>
+    req<null>("/api/file", {
+      method: "DELETE",
+      body: JSON.stringify({ section, path, sha, message }),
+    }),
+
   logout: () => req<void>("/api/auth/logout", { method: "POST" }).catch(() => {}),
 };

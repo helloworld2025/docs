@@ -7,7 +7,7 @@ hero:
   tagline: 聚合 account / relay / analytics 三个仓库的文档，支持网页端直接编辑，也支持代码方式（git push）新增文档
   actions:
     - theme: brand
-      text: 公司通用文档
+      text: 综合文档
       link: /general/
     - theme: alt
       text: Account (SSO)
@@ -18,6 +18,11 @@ hero:
     - theme: alt
       text: Analytics
       link: /analytics/
+    - theme: alt
+      text: ＋ 新建分类
+      link: /edit/?action=create-section
+      target: _self
+
 
 features:
   - title: 📝 网页端编辑

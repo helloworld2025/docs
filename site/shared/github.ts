@@ -81,6 +81,38 @@ export async function putFile(params: {
   return { sha: data.content.sha };
 }
 
+/**
+ * 删除文件 —— 同样使用乐观并发控制（blob sha），调用方需先拿到当前 sha。
+ */
+export async function deleteFile(params: {
+  repo: string;
+  path: string;
+  message: string;
+  sha: string;
+  authorName?: string;
+  authorEmail?: string;
+  token: string;
+}): Promise<void> {
+  const { repo, path, message, sha, token } = params;
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+
+  const body: Record<string, unknown> = { message, sha };
+  if (params.authorName && params.authorEmail) {
+    body.committer = { name: params.authorName, email: params.authorEmail };
+  }
+
+  const res = await fetch(`${API_BASE}/repos/${repo}/contents/${encodedPath}`, {
+    method: "DELETE",
+    headers: { ...ghHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new GithubApiError(res.status, `删除文件失败 (${res.status}): ${detail}`);
+  }
+}
+
 function b64EncodeUtf8(str: string): string {
   const bytes = new TextEncoder().encode(str);
   let bin = "";
